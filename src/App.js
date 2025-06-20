@@ -6,7 +6,7 @@ import { Settings } from './components/Settings';
 import { WifiCard } from './components/WifiCard';
 import './style.css';
 import { Translations } from './translations';
-
+import { toPng } from 'html-to-image';
 function App() {
   const html = document.querySelector('html');
   const { t, i18n } = useTranslation();
@@ -50,27 +50,27 @@ function App() {
     i18n.changeLanguage(language);
   };
 
-  const onPrint = () => {
+  function validateSettings(settings, errors) {
     if (!settings.ssid.length) {
       setErrors({
         ...errors,
         ssidError: t('wifi.alert.name'),
       });
-      return;
+      return false;
     }
     if (settings.password.length < 8 && settings.encryptionMode === 'WPA') {
       setErrors({
         ...errors,
         passwordError: t('wifi.alert.password.length.8'),
       });
-      return;
+      return false;
     }
     if (settings.password.length < 5 && settings.encryptionMode === 'WEP') {
       setErrors({
         ...errors,
         passwordError: t('wifi.alert.password.length.5'),
       });
-      return;
+      return false;
     }
     if (
       settings.password.length < 1 &&
@@ -80,7 +80,7 @@ function App() {
         ...errors,
         passwordError: t('wifi.alert.password'),
       });
-      return;
+      return false;
     }
     if (
       settings.eapIdentity.length < 1 &&
@@ -90,10 +90,30 @@ function App() {
         ...errors,
         eapIdentityError: t('wifi.alert.eapIdentity'),
       });
-      return;
+      return false;
     }
+    return true;
+  }
+
+  const onPrint = () => {
+    if (!validateSettings(settings, errors)) return;
     document.title = 'WiFi Card - ' + settings.ssid;
     window.print();
+  };
+
+  const onPrintPic = () => {
+    if (!validateSettings(settings, errors)) return;
+    const dom = document
+      .getElementById('preview-card')
+      .getElementsByTagName('div')[0];
+    dom.style.boxShadow = 'none'; // Remove box shadow for better image quality
+    toPng(dom).then((dataUrl) => {
+      const link = document.createElement('a');
+      link.download = `${settings.ssid}.png`;
+      link.href = dataUrl;
+      link.click();
+      dom.style.boxShadow = ''; // Restore box shadow
+    });
   };
 
   const onSSIDChange = (ssid) => {
@@ -145,60 +165,70 @@ function App() {
 
   return (
     <Pane>
-      <Pane display="flex">
-        <img alt="icon" src={logo} width="32" height="32" />
-        <Heading size={900} paddingRight={16} paddingLeft={16}>
-          {t('title')}
-        </Heading>
-      </Pane>
+      <div className="App">
+        <Pane display="flex">
+          <img alt="icon" src={logo} width="32" height="32" />
+          <Heading size={900} paddingRight={16} paddingLeft={16}>
+            {t('title')}
+          </Heading>
+        </Pane>
 
-      <Pane>
-        <Paragraph marginTop={12}>{t('desc.use')}</Paragraph>
+        <Pane>
+          <Paragraph marginTop={12}>{t('desc.use')}</Paragraph>
 
-        <Paragraph marginTop={12}>
-          {t('desc.privacy')}{' '}
-          <Link href="https://github.com/bndw/wifi-card">
-            {t('desc.source')}
-          </Link>
-          .
-        </Paragraph>
-      </Pane>
+          <Paragraph marginTop={12}>
+            {t('desc.privacy')}{' '}
+            <Link href="https://github.com/bndw/wifi-card">
+              {t('desc.source')}
+            </Link>
+            .
+          </Paragraph>
+        </Pane>
 
-      <Pane>
-        <WifiCard
+        <Pane id="preview-card">
+          <WifiCard
+            settings={settings}
+            ssidError={errors.ssidError}
+            passwordError={errors.passwordError}
+            eapIdentityError={errors.eapIdentityError}
+            onSSIDChange={onSSIDChange}
+            onEapIdentityChange={onEapIdentityChange}
+            onPasswordChange={onPasswordChange}
+          />
+        </Pane>
+
+        <Settings
           settings={settings}
-          ssidError={errors.ssidError}
-          passwordError={errors.passwordError}
-          eapIdentityError={errors.eapIdentityError}
-          onSSIDChange={onSSIDChange}
-          onEapIdentityChange={onEapIdentityChange}
-          onPasswordChange={onPasswordChange}
+          firstLoad={firstLoad}
+          onFirstLoad={onFirstLoad}
+          onLanguageChange={onChangeLanguage}
+          onEncryptionModeChange={onEncryptionModeChange}
+          onEapMethodChange={onEapMethodChange}
+          onOrientationChange={onOrientationChange}
+          onHidePasswordChange={onHidePasswordChange}
+          onHiddenSSIDChange={onHiddenSSIDChange}
+          onAdditionalCardsChange={onAdditionalCardsChange}
+          onHideTipChange={onHideTipChange}
         />
-      </Pane>
 
-      <Settings
-        settings={settings}
-        firstLoad={firstLoad}
-        onFirstLoad={onFirstLoad}
-        onLanguageChange={onChangeLanguage}
-        onEncryptionModeChange={onEncryptionModeChange}
-        onEapMethodChange={onEapMethodChange}
-        onOrientationChange={onOrientationChange}
-        onHidePasswordChange={onHidePasswordChange}
-        onHiddenSSIDChange={onHiddenSSIDChange}
-        onAdditionalCardsChange={onAdditionalCardsChange}
-        onHideTipChange={onHideTipChange}
-      />
-
-      <Button
-        id="print"
-        appearance="primary"
-        height={40}
-        marginRight={16}
-        onClick={onPrint}
-      >
-        {t('button.print')}
-      </Button>
+        <Button
+          id="print"
+          appearance="primary"
+          height={40}
+          marginRight={16}
+          onClick={onPrint}
+        >
+          {t('button.print')}
+        </Button>
+        <Button
+          appearance="primary"
+          height={40}
+          marginRight={16}
+          onClick={onPrintPic}
+        >
+          {'export picture'}
+        </Button>
+      </div>
       <Pane id="print-area">
         {settings.additionalCards >= 0 &&
           [...Array(settings.additionalCards + 1)].map((el, idx) => (

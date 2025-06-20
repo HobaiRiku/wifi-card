@@ -1,4 +1,11 @@
-body {
+/* body {
+  margin: 0 auto;
+  max-width: 500px;
+  padding: 1em;
+} */
+
+.App {
+  overflow: auto;
   margin: 0 auto;
   max-width: 500px;
   padding: 1em;
